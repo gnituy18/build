@@ -17,12 +17,15 @@ int main() {
 
 void insertion_sort(int arr[], int n) {
   for (int i = 1; i < n; ++i) {
-    int j = i - 1;
     int key = arr[i];
-    while (j >= 0 && arr[j] > key) {
-      arr[j + 1] = arr[j];
+    int j = i - 1;
+    while (key < arr[j] && j >= 0) {
+      int tmp = arr[j+1];
+      arr[j+1] = arr[j];
+      arr[j] = tmp;
       --j;
     }
-    arr[j + 1] = key;
+
+    arr[j+1] = key;
   }
 }
