@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Build 1 — Assembly &amp; Test Guide</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px;
+         margin: 2rem auto; padding: 0 1.25rem; color: #222; line-height: 1.55; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #222; padding-bottom: .4rem; }
+  h2 { font-size: 1.15rem; margin-top: 2.2rem; background: #222; color: #fff;
+       padding: .45rem .7rem; border-radius: 4px; }
+  table { border-collapse: collapse; margin: 1rem 0; width: 100%; }
+  th, td { border: 1px solid #bbb; padding: .4rem .7rem; text-align: left; }
+  th { background: #eee; }
+  code, pre { font-family: ui-monospace, Menlo, monospace; background: #f3f3f3;
+              border-radius: 4px; }
+  code { padding: .1rem .35rem; }
+  pre { padding: .7rem 1rem; overflow-x: auto; }
+  .rule { background: #fff3cd; border-left: 5px solid #e0a800; padding: .6rem .9rem;
+          margin: .8rem 0; border-radius: 0 4px 4px 0; }
+  .pass { background: #e6f4e6; border-left: 5px solid #2e7d32; padding: .6rem .9rem;
+          margin: .8rem 0; border-radius: 0 4px 4px 0; }
+  .fail { background: #fdecea; border-left: 5px solid #c62828; padding: .6rem .9rem;
+          margin: .8rem 0; border-radius: 0 4px 4px 0; }
+  .pass b, .fail b { display: inline-block; min-width: 3.2rem; }
+  @media print { h2 { background: none; color: #000; border-bottom: 2px solid #000;
+                      border-radius: 0; padding: .2rem 0; } }
+</style>
+</head>
+<body>
+
+<h1>Build 1 — Assembly &amp; Test Guide</h1>
+<p>XIAO ESP32-C6 + Waveshare 3.6&Prime; e-Paper HAT+ (E) Spectra 6 panel +
+3&times;AA battery + next-photo button. Each stage ends with a test —
+<b>never move on, and never solder, until the current stage passes.</b></p>
+
+<div class="rule"><b>Rule 1 — test before solder.</b> Stages 0&ndash;4 run entirely
+solderless on the breadboard with push-on connections. Stage 5 makes things permanent,
+re-testing after each joint group. This is what guarantees you never desolder.</div>
+
+<div class="rule"><b>Rule 2 — use only the white 9-pin labeled connector on the HAT,
+never the 40-pin holes.</b> On this unit the 40-pin path is electrically dead: the
+controller answers but the panel never powers. The 9-pin header has its name printed
+beside every pin, so there is no counting and no pin-1 guessing.</div>
+
+<div class="rule"><b>Rule 3 — max 2&ndash;3 seconds of iron contact per joint.</b>
+The first C6 was killed by holding the iron on it too long. If solder doesn't take:
+pull away, wait 30 seconds, add flux, retry. Tin every wire end first so joints take
+2 seconds.</div>
+
+<h2>Parts</h2>
+<ul>
+  <li>XIAO ESP32-C6 + 2.54&nbsp;mm header pins</li>
+  <li>Waveshare 3.6&Prime; e-Paper HAT+ (E) with its white 9-pin cable + FFC ribbon</li>
+  <li>Perfboard, breadboard, jumper wires</li>
+  <li>4-pin tactile button</li>
+  <li>1N5817 Schottky diode</li>
+  <li>3&times;AA holder with alkaline batteries</li>
+  <li>USB-C cable, solder, flux</li>
+</ul>
+
+<h2>Stage 0 — Firmware and bare chip (USB only)</h2>
+<p>Solder header pins onto the XIAO (pins only — quick joints), push it into the
+breadboard, plug in USB:</p>
+<pre>idf.py erase-flash flash monitor</pre>
+<div class="pass"><b>Pass:</b> the log boots into provisioning and prints the SoftAP
+name <code>build-1-XXXX</code>. Chip, toolchain, and flash all proven before a single
+project wire exists.</div>
+
+<h2>Stage 1 — Panel, via the 9-pin breakout (solderless)</h2>
+<p>Connect the FFC ribbon from the panel into the HAT's connector (flip the latch,
+insert, close the latch). Plug the white 9-pin cable's free ends onto the XIAO
+header pins, <b>matching the printed labels</b>:</p>
+<table>
+  <tr><th>9-pin label</th><th>XIAO pin</th><th>carries</th></tr>
+  <tr><td>VCC</td><td>3V3</td><td>panel power</td></tr>
+  <tr><td>GND</td><td>GND</td><td>ground</td></tr>
+  <tr><td>DIN</td><td>D10</td><td>SPI data</td></tr>
+  <tr><td>CLK</td><td>D8</td><td>SPI clock</td></tr>
+  <tr><td>CS</td><td>D7</td><td>chip select</td></tr>
+  <tr><td>DC</td><td>D3</td><td>data/command</td></tr>
+  <tr><td>RST</td><td>D2</td><td>reset</td></tr>
+  <tr><td>BUSY</td><td>D1</td><td>panel busy signal</td></tr>
+  <tr><td>PWR</td><td>D6</td><td>panel HV enable</td></tr>
+</table>
+<p>Power up over USB. Credentials were erased in Stage 0, so the firmware draws the
+setup screen — that exercises the entire panel path.</p>
+<div class="pass"><b>Pass:</b> power-on completes in ~3&nbsp;s, then a 15&ndash;25&nbsp;s
+refresh with visible flashing, ending with <b>&ldquo;WiFi Setup / Join WiFi:
+build-1-XXXX / Then open: 192.168.4.1&rdquo;</b> readable on the panel.</div>
+<div class="fail"><b>Fail:</b> refresh &ldquo;done&rdquo; in ~3&nbsp;s with a blank
+screen = a data wire isn't landing (reseat DIN/CLK/CS/DC). Power-on hung or
+35&nbsp;s+ = power path problem (reseat VCC/GND/PWR, check the FFC latch — and make
+sure you're not on the 40-pin holes).</div>
+
+<h2>Stage 2 — WiFi setup and first photo (no new wiring)</h2>
+<p>On your phone: join the <code>build-1-XXXX</code> network shown on the panel,
+open the setup page, enter your home WiFi credentials.</p>
+<div class="pass"><b>Pass:</b> log shows connect &rarr; NTP &rarr; HTTPS fetch of
+120000 bytes &rarr; <code>WiFi stopped; powering panel</code> &rarr; real refresh
+&rarr; <b>your photo on the panel</b> &rarr; deep sleep.</div>
+<div class="fail"><b>Fail:</b> wrong credentials &rarr; the panel itself shows the red
+&ldquo;WiFi failed&rdquo; screen and reboots into setup; just redo it.</div>
+<p><b>Normal, not errors:</b> after deep sleep the monitor prints
+<code>Error: read failed: [Errno 6]</code> — USB serial powers down with the chip.</p>
+
+<h2>Stage 3 — Button (solderless)</h2>
+<p>Push the tactile button into the breadboard across the center gap.
+<b>Use two diagonal legs</b> — same-side legs are internally shorted, which reads as
+always-pressed and boot-loops the device out of sleep, draining batteries.
+Jumper: one diagonal leg &rarr; <b>D0</b>, the other &rarr; <b>GND</b>.</p>
+<p>With the device asleep after Stage 2, press the button once and <b>judge by the
+panel, not the log</b>: the fetch carries <code>?offset=N</code>, so a button wake
+shows the <i>next</i> photo.</p>
+<div class="pass"><b>Pass:</b> the panel refreshes and ends on a <b>different photo</b>
+than before, then sleeps again. (Second check: your server's access log shows
+<code>/build/1/photo?offset=1</code>.)</div>
+<div class="fail"><b>Fail:</b> wakes by itself or loops = same-side legs, move one wire
+to the diagonal. Nothing happens at all = button not reaching D0/GND.</div>
+<div class="rule"><b>Why not the log?</b> <code>woke from button — offset now 1</code>
+prints in the first half-second after wake, before macOS re-detects the USB port —
+those lines are always lost. And re-running <code>idf.py monitor</code> <i>resets</i>
+the chip: that's a normal boot, not a button wake, so offset correctly stays put.</div>
+
+<h2>Stage 4 — Battery (solderless)</h2>
+<p>Battery red (+) &rarr; <b>1N5817 plain end</b>; the <b>grey-band end &rarr; VBUS</b>
+(band always points at the XIAO). Battery black (&minus;) &rarr; <b>GND</b>.
+Clips or breadboard rows for now.</p>
+<div class="rule"><b>Two invariants:</b> never feed the battery into the 3V3 pin
+(bypasses the regulator), and never skip the diode — it blocks USB from charging the
+alkalines, which also means USB and battery may be connected at the same time. We use
+VBUS instead of the BAT pads because BAT runs through the lipo charger, which must
+never see alkalines.</div>
+<p>Unplug USB. Press the button.</p>
+<div class="pass"><b>Pass:</b> a full 15&ndash;25&nbsp;s flashing refresh to the next
+photo on battery alone.</div>
+<div class="fail"><b>Fail:</b> stall or half-drawn image = diode backwards, weak
+batteries, or loose GND.</div>
+
+<h2>Stage 5 — Solder it permanent</h2>
+<p>Everything works; you are only replacing push-on connections with solder, one group
+at a time, <b>retesting after each</b>.</p>
+<ol>
+  <li><b>Mount the XIAO</b> on the perfboard by its header pins — raised, so USB stays
+      reachable and the module takes less heat.</li>
+  <li><b>Make a GND junction:</b> three things need GND (panel, button, battery) but
+      the XIAO has one GND pin. One short wire from the XIAO GND pin to a free
+      perfboard row; all three GND wires land on that row.</li>
+  <li><b>Panel:</b> solder the 9 cable wires (3V3, junction-GND, and the seven D-pins
+      per the table). &rarr; rerun Stage 1's test.</li>
+  <li><b>Button:</b> solder its two diagonal-leg wires to D0 and the junction.
+      &rarr; rerun Stage 3's test.</li>
+  <li><b>Battery:</b> solder red &rarr; diode &rarr; VBUS (band at the XIAO) and
+      black &rarr; junction. &rarr; rerun Stage 4's test.</li>
+</ol>
+<div class="fail"><b>If a retest fails after soldering:</b> the joint you just made is
+the suspect — look for a dull, grainy, blobby joint and reflow only that one
+(2&nbsp;s of iron, a little fresh solder).</div>
+
+<h2>Final check</h2>
+<p>Leave it overnight on battery. At JST midnight it wakes itself and refreshes to the
+day's photo. Then case it — done.</p>
+
+<h2>Gifting</h2>
+<ol>
+  <li><b>Erase your WiFi</b> before wrapping: <code>idf.py erase-flash flash</code>.
+      The frame now has no credentials, so her very first boot goes straight to the
+      setup screen — no red fail screen, no leftover network of yours.</li>
+  <li><b>Take the batteries out</b> and pack them separately. Inserting them is her
+      "power on".</li>
+  <li><b>Include a note</b>, something like:<br>
+      <i>裝上電池，等一分鐘，螢幕會出現設定說明，照著做就好。<br>
+      按鈕按一次就好，每個畫面要等一兩分鐘。<br>
+      之後每天半夜會自動換照片；按一下按鈕馬上換下一張。</i></li>
+</ol>
+<div class="rule"><b>Self-healing behavior to know:</b> the setup screen stays up for
+10 minutes, then the frame deep-sleeps to protect the battery (the panel keeps showing
+the instructions). A button press brings setup back for another 10 minutes. After she's
+configured it once, a temporary router outage costs at most one skipped day — the frame
+retries her saved WiFi on the next wake; it only waits in setup mode again if the
+connection keeps failing, and even then sleeps after 10 minutes.</div>
+
+<h2>Reference — healthy timings</h2>
+<table>
+  <tr><th>Log step</th><th>Healthy</th><th>Means trouble</th></tr>
+  <tr><td>post-reset</td><td>~130 ms</td><td>hang = RST/BUSY wire</td></tr>
+  <tr><td>power-on</td><td>~3 s</td><td>20 s+ = marginal power contact; 35 s+/hang = power path fault</td></tr>
+  <tr><td>refresh</td><td>15&ndash;25 s, panel visibly flashing</td><td>~3 s &ldquo;done&rdquo; + blank screen = panel not actually driven</td></tr>
+</table>
+
+</body>
+</html>

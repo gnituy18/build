@@ -1,0 +1,18 @@
+# Required: HTTPS to hsuyuting.com uses mbedTLS' bundled CA list
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
+# Bigger main task stack — HTTPS + 120 KB image buffer + WiFi
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# HTTP server in provisioning mode needs a slightly larger control plane
+CONFIG_HTTPD_MAX_URI_HANDLERS=8
+
+# Deep-sleep retention so RTC_DATA_ATTR vars persist across timer wakeups
+CONFIG_ESP_SLEEP_GPIO_RESET_WORKAROUND=y
+
+# XIAO ESP32-C6 has 4 MB flash. Default 1 MB app partition is too small
+# once mbedTLS + WiFi + HTTPS bundle gets pulled in (~1.18 MB binary).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
